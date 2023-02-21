@@ -85,7 +85,7 @@ jobs:
           echo "sha256-$platform=`shasum -a 256 ${{ inputs.package_name }}-$platform.tar.gz | awk '{ print $1 }'`" >> $GITHUB_OUTPUT
       - name: Generate
         run: |
-          cp inventory-template.toml ${{ inputs.protocol_name }}.toml
+          wget https://raw.githubusercontent.com/CoLearn-Dev/colink-protocol-inventory-workflow-templates/main/inventory-template-rust.toml -O ${{ inputs.protocol_name }}.toml
           sed -i 's#{{source.git.url}}#${{ github.event.repository.clone_url }}#' ${{ inputs.protocol_name }}.toml
           sed -i 's#{{source.git.commit}}#${{ steps.commit_hash.outputs.commit_hash }}#' ${{ inputs.protocol_name }}.toml
           sed -i 's#{{binary.linux-x86_64.url}}#${{ github.event.repository.html_url }}/releases/download/${{ github.event.release.tag_name }}/${{ inputs.package_name }}-linux-x86_64.tar.gz#' ${{ inputs.protocol_name }}.toml
