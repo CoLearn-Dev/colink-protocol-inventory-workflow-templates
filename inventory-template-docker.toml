@@ -1,4 +1,4 @@
-[source]
-    [source.git]
-    url = "{{source.git.url}}"
-    commit = "{{source.git.commit}}"
+[docker]
+    [docker.image]
+    name = "{{docker.image.name}}"
+    digest = "{{docker.image.digest}}"

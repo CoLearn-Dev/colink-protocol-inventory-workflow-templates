@@ -46,18 +46,22 @@ jobs:
         shell: bash
     needs: [ build ]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-      - name: Commit Hash
-        id: commit_hash
-        run: echo "commit_hash=`git rev-parse HEAD`" >> $GITHUB_OUTPUT
+      - name: Digest
+        id: digest
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository }}
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          docker pull $IMAGE_ID:$VERSION
+          DIGEST=`docker inspect --format='{{index .RepoDigests 0}}' $IMAGE_ID:$VERSION | awk -F'@' '{print $2}'`
+          echo "name=$IMAGE_ID" >> $GITHUB_OUTPUT
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
       - name: Generate
         run: |
           wget https://raw.githubusercontent.com/CoLearn-Dev/colink-protocol-inventory-workflow-templates/main/inventory-template-docker.toml -O ${{ inputs.protocol_name }}.toml
-          sed -i 's#{{source.git.url}}#${{ github.event.repository.clone_url }}#' ${{ inputs.protocol_name }}.toml
-          sed -i 's#{{source.git.commit}}#${{ steps.commit_hash.outputs.commit_hash }}#' ${{ inputs.protocol_name }}.toml
+          sed -i 's#{{docker.image.name}}#${{ steps.digest.outputs.name }}#' ${{ inputs.protocol_name }}.toml
+          sed -i 's#{{docker.image.digest}}#${{ steps.digest.outputs.digest }}#' ${{ inputs.protocol_name }}.toml
       - name: SSH Agent
         run: |
           eval `ssh-agent`
