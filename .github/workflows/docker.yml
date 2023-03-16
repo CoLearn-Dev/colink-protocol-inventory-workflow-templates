@@ -1,0 +1,78 @@
+on:
+  workflow_call:
+    inputs:
+      protocol_name:
+        required: true
+        type: string
+    secrets:
+      SSH_KEY:
+        required: true
+
+name: Build
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Build
+        run: docker build -t ${{ inputs.protocol_name }} .
+      - name: Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+      - name: Push image
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository }}
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          docker tag ${{ inputs.protocol_name }} $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
+
+  update-inventory:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    needs: [ build ]
+    steps:
+      - name: Commit Hash
+        id: commit_hash
+        run: echo "commit_hash=`git rev-parse HEAD`" >> $GITHUB_OUTPUT
+      - name: Generate
+        run: |
+          wget https://raw.githubusercontent.com/CoLearn-Dev/colink-protocol-inventory-workflow-templates/main/inventory-template-docker.toml -O ${{ inputs.protocol_name }}.toml
+          sed -i 's#{{source.git.url}}#${{ github.event.repository.clone_url }}#' ${{ inputs.protocol_name }}.toml
+          sed -i 's#{{source.git.commit}}#${{ steps.commit_hash.outputs.commit_hash }}#' ${{ inputs.protocol_name }}.toml
+      - name: SSH Agent
+        run: |
+          eval `ssh-agent`
+          ssh-add - <<< "${{ secrets.SSH_KEY }}"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+      - name: Clone inventory repository
+        run: git clone git@github.com:CoLearn-Dev/colink-protocol-inventory.git
+      - name: Copy
+        run: cp ${{ inputs.protocol_name }}.toml colink-protocol-inventory/protocols/
+      - name: Set pusher
+        run: |
+          git config --global user.email "104302037+colearn-dev-bot@users.noreply.github.com"
+          git config --global user.name "colearn-dev-bot"
+      - name: Add
+        working-directory: ./colink-protocol-inventory
+        run: git add protocols/${{ inputs.protocol_name }}.toml
+      - name: Commit
+        working-directory: ./colink-protocol-inventory
+        run: git commit -m "Update ${{ inputs.protocol_name }}"
+      - name: Push
+        working-directory: ./colink-protocol-inventory
+        run: git push

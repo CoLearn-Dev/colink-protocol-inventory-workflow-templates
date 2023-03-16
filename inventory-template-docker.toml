@@ -1,0 +1,4 @@
+[source]
+    [source.git]
+    url = "{{source.git.url}}"
+    commit = "{{source.git.commit}}"
