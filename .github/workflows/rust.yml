@@ -64,6 +64,7 @@ jobs:
             });
 
   update-inventory:
+    if: ${{ inputs.build_only }} != 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
