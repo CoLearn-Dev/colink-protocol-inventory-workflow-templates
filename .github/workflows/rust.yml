@@ -9,7 +9,7 @@ on:
         type: string
     secrets:
       SSH_KEY:
-        required: true
+        required: false
 
 name: Build
 
