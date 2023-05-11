@@ -4,6 +4,9 @@ on:
       protocol_name:
         required: true
         type: string
+      build_only:
+        required: false
+        type: boolean
     secrets:
       SSH_KEY:
         required: false
