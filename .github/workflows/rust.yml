@@ -43,6 +43,12 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: Install protobuf
+        if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}
+        run: sudo apt update && sudo apt install protobuf-compiler -y
+      - name: Install protobuf(macos)
+        if: ${{ startsWith(matrix.ci_image, 'macos') }}
+        run: brew install protobuf
       - name: Build
         run: cargo build --release --target ${{ matrix.cargo_target }}
       - name: Install sed
